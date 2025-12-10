@@ -176,8 +176,9 @@ void BasicSimulation::ConfigureSimulation() {
     std::cout << "  > Seed............. " << m_simulation_seed << std::endl;
 
     // Set end time
-    Simulator::Stop(NanoSeconds(m_simulation_end_time_ns));
+    // Simulator::Stop(NanoSeconds(m_simulation_end_time_ns));
     printf("  > Duration......... %.2f s (%" PRId64 " ns)\n", m_simulation_end_time_ns / 1e9, m_simulation_end_time_ns);
+    printf("  > NOTE: Simulator::Stop not called here - will be controlled in main loop\n");
 
     std::cout << std::endl;
     RegisterTimestamp("Configure simulator");
@@ -246,7 +247,7 @@ void BasicSimulation::ShowSimulationProgress() {
 }
 
 void BasicSimulation::ConfirmAllConfigParamKeysRequested() {
-    for (const std::pair<std::string, std::string>& key_val : m_config) {
+    for (const std::pair<const std::string, std::string>& key_val : m_config) {
         if (m_configRequestedKeys.find(key_val.first) == m_configRequestedKeys.end()) {
             throw std::runtime_error(format_string("Config key \'%s\' has not been requested (unused config keys are not allowed)", key_val.first.c_str()));
         }
