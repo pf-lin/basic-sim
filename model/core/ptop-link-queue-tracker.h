@@ -58,6 +58,9 @@ namespace ns3 {
     public:
         static TypeId GetTypeId (void);
         PtopLinkQueueTracker(Ptr<PointToPointNetDevice> netDevice);
+        PtopLinkQueueTracker();  // default constructor
+        void SetQueue(Ptr<Queue<Packet>> queue);  // setter for queue
+        void Reset(); // reset state
         void NetDevicePacketsInQueueCallback(uint32_t, uint32_t num_packets);
         void NetDeviceBytesInQueueCallback(uint32_t, uint32_t num_bytes);
         const std::vector<std::tuple<int64_t, int64_t, int64_t>>& GetIntervalsNumPackets();
