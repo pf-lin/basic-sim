@@ -97,11 +97,15 @@ namespace ns3 {
                 m_udp_bursts_outgoing_txt_filename = m_basicSimulation->GetLogsDir() + "/system_" + std::to_string(m_system_id) + "_udp_bursts_outgoing.txt";
                 m_udp_bursts_incoming_csv_filename = m_basicSimulation->GetLogsDir() + "/system_" + std::to_string(m_system_id) + "_udp_bursts_incoming.csv";
                 m_udp_bursts_incoming_txt_filename = m_basicSimulation->GetLogsDir() + "/system_" + std::to_string(m_system_id) + "_udp_bursts_incoming.txt";
+                m_udp_bursts_outgoing_send_summary_csv_filename = m_basicSimulation->GetLogsDir() + "/system_" + std::to_string(m_system_id) + "_udp_bursts_outgoing_send_summary.csv";
+                m_udp_send_failures_csv_filename = m_basicSimulation->GetLogsDir() + "/system_" + std::to_string(m_system_id) + "_udp_send_failures.csv";
             } else {
                 m_udp_bursts_outgoing_csv_filename = m_basicSimulation->GetLogsDir() + "/udp_bursts_outgoing.csv";
                 m_udp_bursts_outgoing_txt_filename = m_basicSimulation->GetLogsDir() + "/udp_bursts_outgoing.txt";
                 m_udp_bursts_incoming_csv_filename = m_basicSimulation->GetLogsDir() + "/udp_bursts_incoming.csv";
                 m_udp_bursts_incoming_txt_filename = m_basicSimulation->GetLogsDir() + "/udp_bursts_incoming.txt";
+                m_udp_bursts_outgoing_send_summary_csv_filename = m_basicSimulation->GetLogsDir() + "/udp_bursts_outgoing_send_summary.csv";
+                m_udp_send_failures_csv_filename = m_basicSimulation->GetLogsDir() + "/udp_send_failures.csv";
             }
 
             // Remove files if they are there
@@ -109,6 +113,12 @@ namespace ns3 {
             remove_file_if_exists(m_udp_bursts_outgoing_txt_filename);
             remove_file_if_exists(m_udp_bursts_incoming_csv_filename);
             remove_file_if_exists(m_udp_bursts_incoming_txt_filename);
+            remove_file_if_exists(m_udp_bursts_outgoing_send_summary_csv_filename);
+            remove_file_if_exists(m_udp_send_failures_csv_filename);
+            std::ofstream send_failures;
+            send_failures.open(m_udp_send_failures_csv_filename, std::ofstream::out | std::ofstream::trunc);
+            send_failures << "time_ns,flow_id,src,dst,packet_size_bytes,error_code,error_message_if_available" << std::endl;
+            send_failures.close();
             printf("  > Removed previous UDP burst log files if present\n");
             m_basicSimulation->RegisterTimestamp("Remove previous UDP burst log files");
 
@@ -171,6 +181,8 @@ namespace ns3 {
             std::cout << "    >> Opened: " << m_udp_bursts_incoming_csv_filename << std::endl;
             FILE* file_incoming_txt = fopen(m_udp_bursts_incoming_txt_filename.c_str(), "w+");
             std::cout << "    >> Opened: " << m_udp_bursts_incoming_txt_filename << std::endl;
+            FILE* file_send_summary_csv = fopen(m_udp_bursts_outgoing_send_summary_csv_filename.c_str(), "w+");
+            std::cout << "    >> Opened: " << m_udp_bursts_outgoing_send_summary_csv_filename << std::endl;
 
             // Header
             std::cout << "  > Writing udp_bursts_{incoming, outgoing}.txt headers" << std::endl;
@@ -185,6 +197,10 @@ namespace ns3 {
                     "UDP burst ID", "From", "To", "Target rate", "Start time", "Duration",
                     "Incoming rate (w/ headers)", "Incoming rate (payload)", "Packets received",
                     "Data received (w/headers)", "Data received (payload)", "Metadata"
+            );
+            fprintf(
+                    file_send_summary_csv,
+                    "flow_id,src,dst,attempted_packets,successfully_submitted_packets,send_failed_packets\n"
             );
 
             // Sort ascending to preserve UDP burst schedule order
@@ -208,6 +224,8 @@ namespace ns3 {
                 uint32_t complete_packet_size = 1500;
                 uint32_t max_udp_payload_size_byte = udpBurstAppOutgoing->GetMaxUdpPayloadSizeByte();
                 uint64_t sent_counter = udpBurstAppOutgoing->GetSentCounterOf(info.GetUdpBurstId());
+                uint64_t successfully_submitted_counter = udpBurstAppOutgoing->GetSuccessfullySubmittedCounterOf(info.GetUdpBurstId());
+                uint64_t send_failed_counter = udpBurstAppOutgoing->GetSendFailedCounterOf(info.GetUdpBurstId());
 
                 // Calculate outgoing rate
                 int64_t effective_duration_ns = info.GetStartTimeNs() + info.GetDurationNs() >= m_simulation_end_time_ns ? m_simulation_end_time_ns - info.GetStartTimeNs() : info.GetDurationNs();
@@ -220,6 +238,16 @@ namespace ns3 {
                         info.GetUdpBurstId(), info.GetFromNodeId(), info.GetToNodeId(), info.GetTargetRateMegabitPerSec(), info.GetStartTimeNs(),
                         info.GetDurationNs(), rate_incl_headers_megabit_per_s, rate_payload_only_megabit_per_s, sent_counter,
                         sent_counter * complete_packet_size, sent_counter * max_udp_payload_size_byte, info.GetMetadata().c_str()
+                );
+                fprintf(
+                        file_send_summary_csv,
+                        "%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRIu64 ",%" PRIu64 ",%" PRIu64 "\n",
+                        info.GetUdpBurstId(),
+                        info.GetFromNodeId(),
+                        info.GetToNodeId(),
+                        sent_counter,
+                        successfully_submitted_counter,
+                        send_failed_counter
                 );
 
                 // Write nicely formatted to the text
@@ -323,6 +351,8 @@ namespace ns3 {
             std::cout << "    >> Closed: " << m_udp_bursts_incoming_csv_filename << std::endl;
             fclose(file_incoming_txt);
             std::cout << "    >> Closed: " << m_udp_bursts_incoming_txt_filename << std::endl;
+            fclose(file_send_summary_csv);
+            std::cout << "    >> Closed: " << m_udp_bursts_outgoing_send_summary_csv_filename << std::endl;
 
             // Register completion
             std::cout << "  > UDP burst log files have been written" << std::endl;

@@ -52,6 +52,8 @@ namespace ns3 {
         std::vector<std::tuple<UdpBurstInfo, uint64_t>> GetOutgoingBurstsInformation();
         std::vector<std::tuple<UdpBurstInfo, uint64_t>> GetIncomingBurstsInformation();
         uint64_t GetSentCounterOf(int64_t udp_burst_id);
+        uint64_t GetSuccessfullySubmittedCounterOf(int64_t udp_burst_id);
+        uint64_t GetSendFailedCounterOf(int64_t udp_burst_id);
         uint64_t GetReceivedCounterOf(int64_t udp_burst_id);
 
     protected:
@@ -61,6 +63,8 @@ namespace ns3 {
         virtual void StartApplication (void);
         virtual void StopApplication (void);
         void HandleRead (Ptr<Socket> socket);
+        void LogSendFailure(UdpBurstInfo burstInfo, uint32_t packet_size_bytes, int error_code, std::string error_message);
+        static std::string SocketErrnoToString(Socket::SocketErrno error_code);
 
         uint16_t m_port;      //!< Port on which we listen for incoming packets.
         uint32_t m_max_udp_payload_size_byte;  //!< Maximum size of UDP payload before getting fragmented
@@ -72,6 +76,8 @@ namespace ns3 {
         // Outgoing bursts
         std::vector<std::tuple<UdpBurstInfo, InetSocketAddress>> m_outgoing_bursts; //!< Weakly ascending on start time list of bursts
         std::vector<uint64_t> m_outgoing_bursts_packets_sent_counter; //!< Amount of UDP packets sent out already for each burst
+        std::vector<uint64_t> m_outgoing_bursts_packets_successfully_submitted_counter; //!< Packets accepted by Socket::SendTo
+        std::vector<uint64_t> m_outgoing_bursts_packets_send_failed_counter; //!< Packets rejected by Socket::SendTo
         std::vector<EventId> m_outgoing_bursts_event_id; //!< Event ID of the outgoing burst send loop
         std::vector<bool> m_outgoing_bursts_enable_precise_logging; //!< True iff enable precise logging for each burst
         size_t m_next_internal_burst_idx; //!< Next burst index to send out

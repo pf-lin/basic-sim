@@ -29,6 +29,8 @@
 #include "ns3/uinteger.h"
 #include "ns3/abort.h"
 
+#include <fstream>
+
 #include "udp-burst-application.h"
 
 namespace ns3 {
@@ -81,6 +83,8 @@ namespace ns3 {
         }
         m_outgoing_bursts.push_back(std::make_tuple(burstInfo, targetAddress));
         m_outgoing_bursts_packets_sent_counter.push_back(0);
+        m_outgoing_bursts_packets_successfully_submitted_counter.push_back(0);
+        m_outgoing_bursts_packets_send_failed_counter.push_back(0);
         m_outgoing_bursts_event_id.push_back(EventId());
         m_outgoing_bursts_enable_precise_logging.push_back(enable_precise_logging);
         if (enable_precise_logging) {
@@ -195,8 +199,76 @@ namespace ns3 {
         p->AddHeader(idSeq);
 
         // Send out the packet to the target address
-        m_socket->SendTo(p, 0, std::get<1>(m_outgoing_bursts[internal_burst_idx]));
+        int send_result = m_socket->SendTo(p, 0, std::get<1>(m_outgoing_bursts[internal_burst_idx]));
+        if (send_result >= 0) {
+            m_outgoing_bursts_packets_successfully_submitted_counter[internal_burst_idx] += 1;
+        } else {
+            m_outgoing_bursts_packets_send_failed_counter[internal_burst_idx] += 1;
+            Socket::SocketErrno error_code = m_socket->GetErrno();
+            LogSendFailure(
+                std::get<0>(m_outgoing_bursts[internal_burst_idx]),
+                p->GetSize(),
+                static_cast<int>(error_code),
+                SocketErrnoToString(error_code)
+            );
+        }
 
+    }
+
+    void
+    UdpBurstApplication::LogSendFailure(
+        UdpBurstInfo burstInfo,
+        uint32_t packet_size_bytes,
+        int error_code,
+        std::string error_message
+    ) {
+        std::ofstream ofs;
+        ofs.open(m_baseLogsDir + "/udp_send_failures.csv", std::ofstream::out | std::ofstream::app);
+        ofs << Simulator::Now().GetNanoSeconds()
+            << "," << burstInfo.GetUdpBurstId()
+            << "," << burstInfo.GetFromNodeId()
+            << "," << burstInfo.GetToNodeId()
+            << "," << packet_size_bytes
+            << "," << error_code
+            << "," << error_message
+            << std::endl;
+        ofs.close();
+    }
+
+    std::string
+    UdpBurstApplication::SocketErrnoToString(Socket::SocketErrno error_code) {
+        switch (error_code) {
+            case Socket::ERROR_NOTERROR:
+                return "ERROR_NOTERROR";
+            case Socket::ERROR_ISCONN:
+                return "ERROR_ISCONN";
+            case Socket::ERROR_NOTCONN:
+                return "ERROR_NOTCONN";
+            case Socket::ERROR_MSGSIZE:
+                return "ERROR_MSGSIZE";
+            case Socket::ERROR_AGAIN:
+                return "ERROR_AGAIN";
+            case Socket::ERROR_SHUTDOWN:
+                return "ERROR_SHUTDOWN";
+            case Socket::ERROR_OPNOTSUPP:
+                return "ERROR_OPNOTSUPP";
+            case Socket::ERROR_AFNOSUPPORT:
+                return "ERROR_AFNOSUPPORT";
+            case Socket::ERROR_INVAL:
+                return "ERROR_INVAL";
+            case Socket::ERROR_BADF:
+                return "ERROR_BADF";
+            case Socket::ERROR_NOROUTETOHOST:
+                return "ERROR_NOROUTETOHOST";
+            case Socket::ERROR_NODEV:
+                return "ERROR_NODEV";
+            case Socket::ERROR_ADDRNOTAVAIL:
+                return "ERROR_ADDRNOTAVAIL";
+            case Socket::ERROR_ADDRINUSE:
+                return "ERROR_ADDRINUSE";
+            default:
+                return "SOCKET_ERRNO_UNKNOWN";
+        }
     }
 
     void
@@ -264,6 +336,26 @@ namespace ns3 {
             }
         }
         throw std::runtime_error("Sent counter for unknown UDP burst ID was requested");
+    }
+
+    uint64_t
+    UdpBurstApplication::GetSuccessfullySubmittedCounterOf(int64_t udp_burst_id) {
+        for (size_t i = 0; i < m_outgoing_bursts.size(); i++) {
+            if (std::get<0>(m_outgoing_bursts[i]).GetUdpBurstId() == udp_burst_id) {
+                return m_outgoing_bursts_packets_successfully_submitted_counter[i];
+            }
+        }
+        throw std::runtime_error("Successfully-submitted counter for unknown UDP burst ID was requested");
+    }
+
+    uint64_t
+    UdpBurstApplication::GetSendFailedCounterOf(int64_t udp_burst_id) {
+        for (size_t i = 0; i < m_outgoing_bursts.size(); i++) {
+            if (std::get<0>(m_outgoing_bursts[i]).GetUdpBurstId() == udp_burst_id) {
+                return m_outgoing_bursts_packets_send_failed_counter[i];
+            }
+        }
+        throw std::runtime_error("Send-failed counter for unknown UDP burst ID was requested");
     }
 
     uint64_t
