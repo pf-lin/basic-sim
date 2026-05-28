@@ -40,6 +40,32 @@ namespace ns3 {
             // Properties we will use often
             m_nodes = m_topology->GetNodes();
             m_simulation_end_time_ns = m_basicSimulation->GetSimulationEndTimeNs();
+            int64_t traffic_stop_time_ns = parse_positive_int64(
+                    m_basicSimulation->GetConfigParamOrDefault(
+                            "traffic_stop_time_ns",
+                            std::to_string(m_simulation_end_time_ns)
+                    )
+            );
+            int64_t drain_time_ns = parse_positive_int64(
+                    m_basicSimulation->GetConfigParamOrDefault(
+                            "drain_time_ns",
+                            std::to_string(m_simulation_end_time_ns - traffic_stop_time_ns)
+                    )
+            );
+            if (traffic_stop_time_ns > m_simulation_end_time_ns) {
+                throw std::invalid_argument(format_string(
+                        "traffic_stop_time_ns %" PRId64 " exceeds simulation_end_time_ns %" PRId64 ".",
+                        traffic_stop_time_ns, m_simulation_end_time_ns
+                ));
+            }
+            if (drain_time_ns != m_simulation_end_time_ns - traffic_stop_time_ns) {
+                throw std::invalid_argument(format_string(
+                        "drain_time_ns %" PRId64 " must equal simulation_end_time_ns - traffic_stop_time_ns (%" PRId64 ").",
+                        drain_time_ns, m_simulation_end_time_ns - traffic_stop_time_ns
+                ));
+            }
+            std::cout << "  > Traffic stop time: " << (traffic_stop_time_ns / 1e9)
+                      << " s, drain time: " << (drain_time_ns / 1e9) << " s" << std::endl;
             m_enable_logging_for_udp_burst_ids = parse_set_positive_int64(m_basicSimulation->GetConfigParamOrDefault("udp_burst_enable_logging_for_udp_burst_ids", "set()"));
 
             // Distributed run information
