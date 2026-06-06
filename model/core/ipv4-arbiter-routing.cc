@@ -24,6 +24,7 @@
                 << " [node " << m_ipv4->GetObject<Node> ()->GetId () << "] "; }
 
 #include <iomanip>
+#include <fstream>
 #include "ns3/log.h"
 #include "ns3/names.h"
 #include "ns3/packet.h"
@@ -39,6 +40,9 @@ namespace ns3 {
 
     NS_OBJECT_ENSURE_REGISTERED (Ipv4ArbiterRouting);
 
+    bool Ipv4ArbiterRouting::s_enable_drop_trace = false;
+    std::string Ipv4ArbiterRouting::s_routing_drops_csv_filename = "";
+
     TypeId
     Ipv4ArbiterRouting::GetTypeId(void) {
         static TypeId tid = TypeId("ns3::Ipv4ArbiterRouting")
@@ -50,6 +54,46 @@ namespace ns3 {
 
     Ipv4ArbiterRouting::Ipv4ArbiterRouting() : m_ipv4(0) {
         NS_LOG_FUNCTION(this);
+    }
+
+    void
+    Ipv4ArbiterRouting::ConfigureDropTrace(std::string logs_dir, bool enabled) {
+        s_enable_drop_trace = enabled;
+        s_routing_drops_csv_filename = logs_dir + "/routing_drops.csv";
+        std::ofstream ofs;
+        ofs.open(s_routing_drops_csv_filename, std::ofstream::out | std::ofstream::trunc);
+        ofs << "time_ns,drop_source,drop_reason,node_id,src,dst,"
+            << "next_hop_if_available,packet_size_bytes,flow_id_if_available,details"
+            << std::endl;
+        ofs.close();
+    }
+
+    void
+    Ipv4ArbiterRouting::RecordRoutingDrop(
+            std::string drop_source,
+            std::string drop_reason,
+            const Ipv4Header &header,
+            Ptr<const Packet> p,
+            std::string details
+    ) const {
+        if (!s_enable_drop_trace || s_routing_drops_csv_filename == "") {
+            return;
+        }
+        uint32_t packet_size = p == nullptr ? 0 : p->GetSize();
+        std::ofstream ofs;
+        ofs.open(s_routing_drops_csv_filename, std::ofstream::out | std::ofstream::app);
+        ofs << Simulator::Now().GetNanoSeconds()
+            << "," << drop_source
+            << "," << drop_reason
+            << "," << m_nodeId
+            << "," << header.GetSource()
+            << "," << header.GetDestination()
+            << ","
+            << "," << packet_size
+            << ","
+            << "," << details
+            << std::endl;
+        ofs.close();
     }
 
     /**
@@ -152,6 +196,13 @@ namespace ns3 {
         //       If source IP is set already, it just gets dropped and the TCP socket sees it as a normal loss somewhere in the network.
         Ptr<Ipv4Route> route = LookupArbiter(destination, header, p, oif);
         if (route == 0) {
+            RecordRoutingDrop(
+                "ArbiterNoRoute",
+                "RouteOutputLookupFailed",
+                header,
+                p,
+                "Socket route lookup failed before packet submission"
+            );
             sockerr = Socket::ERROR_NOROUTETOHOST;
         } else {
             sockerr = Socket::ERROR_NOTERROR;
@@ -199,6 +250,13 @@ namespace ns3 {
 
             // Lookup failed, so we did not find a route
             // If there are no other routing protocols, this will lead to a drop
+            RecordRoutingDrop(
+                "ArbiterNoRoute",
+                "RouteInputLookupFailed",
+                ipHeader,
+                p,
+                "Forwarding route lookup failed after packet arrived at node"
+            );
             return false;
 
         } else {

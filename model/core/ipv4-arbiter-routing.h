@@ -24,6 +24,7 @@
 #include <list>
 #include <utility>
 #include <stdint.h>
+#include <string>
 #include "ns3/ipv4-address.h"
 #include "ns3/ipv4-header.h"
 #include "ns3/socket.h"
@@ -99,15 +100,25 @@ public:
   virtual void SetIpv4 (Ptr<Ipv4> ipv4);
   void SetArbiter (Ptr<Arbiter> arbiter);
   Ptr<Arbiter> GetArbiter ();
+  static void ConfigureDropTrace(std::string logs_dir, bool enabled);
 
 private:
     Ptr<Ipv4> m_ipv4;
     Ptr<Ipv4Route> LookupArbiter (const Ipv4Address& dest, const Ipv4Header &header, Ptr<const Packet> p, Ptr<NetDevice> oif = 0);
+    void RecordRoutingDrop(
+            std::string drop_source,
+            std::string drop_reason,
+            const Ipv4Header &header,
+            Ptr<const Packet> p,
+            std::string details
+    ) const;
     Ptr<Arbiter> m_arbiter = 0;
     Ipv4Address m_nodeSingleIpAddress;
     Ipv4Mask loopbackMask = Ipv4Mask("255.0.0.0");
     Ipv4Address loopbackIp = Ipv4Address("127.0.0.1");
     uint32_t m_nodeId;
+    static bool s_enable_drop_trace;
+    static std::string s_routing_drops_csv_filename;
 
 };
 
