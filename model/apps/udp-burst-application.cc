@@ -197,6 +197,7 @@ namespace ns3 {
         // A full payload packet
         Ptr<Packet> p = Create<Packet>(m_max_udp_payload_size_byte - idSeq.GetSerializedSize());
         p->AddHeader(idSeq);
+        p->AddPacketTag(UdpFlowTag(idSeq.GetId(), idSeq.GetSeq()));
 
         // Send out the packet to the target address
         int send_result = m_socket->SendTo(p, 0, std::get<1>(m_outgoing_bursts[internal_burst_idx]));
@@ -207,6 +208,8 @@ namespace ns3 {
             Socket::SocketErrno error_code = m_socket->GetErrno();
             LogSendFailure(
                 std::get<0>(m_outgoing_bursts[internal_burst_idx]),
+                idSeq.GetSeq(),
+                p->GetUid(),
                 p->GetSize(),
                 static_cast<int>(error_code),
                 SocketErrnoToString(error_code)
@@ -218,6 +221,8 @@ namespace ns3 {
     void
     UdpBurstApplication::LogSendFailure(
         UdpBurstInfo burstInfo,
+        uint64_t packet_sequence,
+        uint64_t packet_uid,
         uint32_t packet_size_bytes,
         int error_code,
         std::string error_message
@@ -228,6 +233,8 @@ namespace ns3 {
             << "," << burstInfo.GetUdpBurstId()
             << "," << burstInfo.GetFromNodeId()
             << "," << burstInfo.GetToNodeId()
+            << "," << packet_sequence
+            << "," << packet_uid
             << "," << packet_size_bytes
             << "," << error_code
             << "," << error_message

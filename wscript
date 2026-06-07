@@ -34,6 +34,7 @@ def build(bld):
         'model/apps/udp-rtt-server.cc',
         'model/apps/udp-burst-info.cc',
         'model/apps/id-seq-header.cc',
+        'model/apps/udp-flow-tag.cc',
 
         'helper/apps/tcp-flow-send-helper.cc',
         'helper/apps/tcp-flow-sink-helper.cc',
@@ -78,6 +79,7 @@ def build(bld):
         'model/apps/udp-rtt-server.h',
         'model/apps/udp-burst-info.h',
         'model/apps/id-seq-header.h',
+        'model/apps/udp-flow-tag.h',
 
         'helper/apps/tcp-flow-send-helper.h',
         'helper/apps/tcp-flow-sink-helper.h',

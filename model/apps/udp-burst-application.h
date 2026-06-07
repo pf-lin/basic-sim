@@ -29,6 +29,7 @@
 #include "ns3/seq-ts-header.h"
 #include "ns3/udp-burst-info.h"
 #include "ns3/id-seq-header.h"
+#include "ns3/udp-flow-tag.h"
 #include "ns3/string.h"
 #include "ns3/exp-util.h"
 
@@ -63,7 +64,14 @@ namespace ns3 {
         virtual void StartApplication (void);
         virtual void StopApplication (void);
         void HandleRead (Ptr<Socket> socket);
-        void LogSendFailure(UdpBurstInfo burstInfo, uint32_t packet_size_bytes, int error_code, std::string error_message);
+        void LogSendFailure(
+            UdpBurstInfo burstInfo,
+            uint64_t packet_sequence,
+            uint64_t packet_uid,
+            uint32_t packet_size_bytes,
+            int error_code,
+            std::string error_message
+        );
         static std::string SocketErrnoToString(Socket::SocketErrno error_code);
 
         uint16_t m_port;      //!< Port on which we listen for incoming packets.

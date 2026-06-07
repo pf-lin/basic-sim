@@ -117,7 +117,9 @@ namespace ns3 {
             remove_file_if_exists(m_udp_send_failures_csv_filename);
             std::ofstream send_failures;
             send_failures.open(m_udp_send_failures_csv_filename, std::ofstream::out | std::ofstream::trunc);
-            send_failures << "time_ns,flow_id,src,dst,packet_size_bytes,error_code,error_message_if_available" << std::endl;
+            send_failures << "time_ns,flow_id,src,dst,packet_sequence_if_available,"
+                          << "packet_uid_if_available,packet_size_bytes,error_code,"
+                          << "error_message_if_available" << std::endl;
             send_failures.close();
             printf("  > Removed previous UDP burst log files if present\n");
             m_basicSimulation->RegisterTimestamp("Remove previous UDP burst log files");

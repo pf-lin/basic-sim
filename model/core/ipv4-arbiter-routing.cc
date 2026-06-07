@@ -32,6 +32,7 @@
 #include "ns3/simulator.h"
 #include "ns3/ipv4-route.h"
 #include "ns3/output-stream-wrapper.h"
+#include "ns3/udp-flow-tag.h"
 #include "ipv4-arbiter-routing.h"
 
 namespace ns3 {
@@ -63,7 +64,9 @@ namespace ns3 {
         std::ofstream ofs;
         ofs.open(s_routing_drops_csv_filename, std::ofstream::out | std::ofstream::trunc);
         ofs << "time_ns,drop_source,drop_reason,node_id,src,dst,"
-            << "next_hop_if_available,packet_size_bytes,flow_id_if_available,details"
+            << "next_hop_if_available,packet_size_bytes,flow_id_if_available,"
+            << "packet_sequence_if_available,packet_uid_if_available,"
+            << "flow_tag_available,details"
             << std::endl;
         ofs.close();
     }
@@ -80,6 +83,19 @@ namespace ns3 {
             return;
         }
         uint32_t packet_size = p == nullptr ? 0 : p->GetSize();
+        std::string flow_id = "";
+        std::string packet_sequence = "";
+        std::string packet_uid = "";
+        std::string flow_tag_available = "false";
+        if (p != nullptr) {
+            packet_uid = std::to_string(p->GetUid());
+            UdpFlowTag flow_tag;
+            if (p->PeekPacketTag(flow_tag)) {
+                flow_id = std::to_string(flow_tag.GetFlowId());
+                packet_sequence = std::to_string(flow_tag.GetPacketSequence());
+                flow_tag_available = "true";
+            }
+        }
         std::ofstream ofs;
         ofs.open(s_routing_drops_csv_filename, std::ofstream::out | std::ofstream::app);
         ofs << Simulator::Now().GetNanoSeconds()
@@ -90,7 +106,10 @@ namespace ns3 {
             << "," << header.GetDestination()
             << ","
             << "," << packet_size
-            << ","
+            << "," << flow_id
+            << "," << packet_sequence
+            << "," << packet_uid
+            << "," << flow_tag_available
             << "," << details
             << std::endl;
         ofs.close();
